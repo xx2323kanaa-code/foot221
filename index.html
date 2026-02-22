@@ -144,6 +144,7 @@ const countNow = document.getElementById("countNow");
 const hud = document.getElementById("hud");
 const status = document.getElementById("status");
 const intro = document.getElementById("intro");
+const extraArea = document.getElementById("extraArea");
 
 /* ===== モード管理 ===== */
 let socksMode = false;
@@ -304,6 +305,9 @@ document.getElementById("startBtn").onclick = async()=>{
     starTimes=[];
     countNow.textContent="Now: 0 / 現在: 0";
     if(intro) intro.style.display="none";
+    if(extraArea) extraArea.style.display="none";
+    if(graphMessage) graphMessage.textContent="";
+    if(distanceMessage) distanceMessage.textContent="";
     logs.push("=== SESSION START ===");
     logModeChange();
     detectLoop();
@@ -319,6 +323,7 @@ document.getElementById("startBtn").onclick = async()=>{
     localStorage.setItem("ankleHistory",JSON.stringify(history));
     logs.push("=== SESSION END ===");
     if(intro) intro.style.display="block";
+    if(extraArea) extraArea.style.display="block";
     document.getElementById("startBtn").textContent="📷 Start Camera / カメラ起動";
   }
 };
@@ -474,10 +479,10 @@ function renderTokaidoSummary(){
   const avgPerDay = days.length ? (totalCounts/days.length).toFixed(1) : "0.0";
   let directionText;
   if(startPoint==="nihonbashi"){
-    directionText = `${startLabel}から約${distanceKm.toFixed(2)}kmで東海道53次 ${stationIndex}番目の${stationLabel}（${station.distance.toFixed(1)}km地点）に達しています。`;
+    directionText = `${startLabel}から約${distanceKm.toFixed(2)}km進むと東海道53次 ${stationIndex}番目の${stationLabel}（${station.distance.toFixed(1)}km地点）に到達します。`;
   }else{
     const remaining = Math.max(0, totalRouteKm - station.distance);
-    directionText = `${startLabel}から約${distanceKm.toFixed(2)}km歩くと東海道53次 ${stationIndex}番目の${stationLabel}（残り ${remaining.toFixed(1)}km）に達しています。`;
+    directionText = `${startLabel}から約${distanceKm.toFixed(2)}km進むと東海道53次 ${stationIndex}番目の${stationLabel}（残り ${remaining.toFixed(1)}km）に到達します。`;
   }
   distanceMessage.textContent=`累計 ${totalCounts} 回、記録日数 ${days.length} 日、1日平均 ${avgPerDay} 回。${directionText}`;
 }
