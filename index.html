@@ -501,23 +501,16 @@ function renderTokaidoSummary(){
   const startPoint = startPointSelect.value;
   const station = findStationForDistance(distanceKm, startPoint);
   const startLabel = startPoint==="nihonbashi" ? "日本橋" : "三条大橋";
-  const stationLabel = station.name;
-  const stationIndex = station.index+1;
   const avgPerDay = days.length ? (totalCounts/days.length).toFixed(1) : "0.0";
-  let directionText;
   const nextInfo = getNextStationAndGap(station.index, startPoint, distanceKm);
-  if(startPoint==="nihonbashi"){
-    directionText = `${startLabel}から約${distanceKm.toFixed(2)}kmです。`;
-  }else{
-    directionText = `${startLabel}から約${distanceKm.toFixed(2)}kmです。`;
-  }
+  const startDistanceText = `${startLabel}から約${distanceKm.toFixed(2)}kmです。`;
   let nextText = "";
   if(nextInfo){
     nextText = `さらに${nextInfo.gap.toFixed(2)}km進むと東海道53次 ${nextInfo.index}番目の${nextInfo.name}（${nextInfo.stationDistance.toFixed(1)}km地点）に到達します。`;
   }else{
     nextText = `次の宿場がありません。`;
   }
-  const summaryText=`累計 ${totalCounts} 回、記録日数 ${days.length} 日、1日平均 ${avgPerDay} 回。${distanceMeters.toFixed(1)}m進みました。${directionText}${nextText}`;
+  const summaryText=`累計 ${totalCounts} 回、記録日数 ${days.length} 日、1日平均 ${avgPerDay} 回。${totalCounts}✖︎45cm=${distanceMeters.toFixed(1)}m進みました。${startDistanceText}${nextText}`;
   distanceMessage.textContent=summaryText;
   if(overlay){
     overlay.textContent=`東海道53次換算：${summaryText}`;
