@@ -96,6 +96,38 @@ button, select{
   border:1px solid #999;
   background:#fff;
 }
+#historyEditor{
+  padding:6px;
+  font-size:13px;
+  border-top:1px solid #d0d0d0;
+  background:#fffef8;
+}
+#historyEditor textarea{
+  width:100%;
+  min-height:120px;
+  border:1px solid #bbb;
+  border-radius:4px;
+  padding:6px;
+  font-family:monospace;
+  font-size:13px;
+  resize:vertical;
+}
+#historyEditor .editorActions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin-top:6px;
+  flex-wrap:wrap;
+}
+#historyEditor button{
+  padding:6px 10px;
+  border-radius:4px;
+  border:1px solid #999;
+  background:#fff;
+}
+#details{
+
+}
 #historyChart{
   width:100%;
   max-width:100%;
@@ -156,8 +188,16 @@ button, select{
   </div>
   <canvas id="historyChart" width="320" height="180" aria-label="過去7日間の実施回数"></canvas>
   <div id="graphMessage"></div>
-  <div id="distanceMessage"></div>
+<div id="distanceMessage"></div>
 </div>
+<details id="historyEditor">
+  <summary>CSV/履歴を手動で調整</summary>
+  <textarea id="historyEditorArea" aria-label="日別記録をカンマ区切りで編集"></textarea>
+  <div class="editorActions">
+    <button id="historyEditorApply">履歴に反映</button>
+    <span>1行目はヘッダ「date,total,barefoot,socks」を維持してください。</span>
+  </div>
+</details>
 
 <script>
   
@@ -168,6 +208,9 @@ const hud = document.getElementById("hud");
 const status = document.getElementById("status");
 const intro = document.getElementById("intro");
 const extraArea = document.getElementById("extraArea");
+const historyEditor = document.getElementById("historyEditor");
+const historyEditorArea = document.getElementById("historyEditorArea");
+const historyEditorApply = document.getElementById("historyEditorApply");
 
 /* ===== モード管理 ===== */
 let socksMode = false;
@@ -184,6 +227,7 @@ let sessionModeCounts={barefoot:0,socks:0};
 let starTimes=[];
 
 const MAX_LOGS=300;
+let lastCommittedSession = {total:0,barefoot:0,socks:0};
 
 /* ---- tuning（裸足基準・温存） ---- */
 const THRESH_ON=6;
@@ -304,6 +348,24 @@ function getCombinedHistory(){
   return combined;
 }
 
+function commitSessionCounts(){
+  const deltaTotal = sessionCount - lastCommittedSession.total;
+  const deltaBarefoot = sessionModeCounts.barefoot - lastCommittedSession.barefoot;
+  const deltaSocks = sessionModeCounts.socks - lastCommittedSession.socks;
+  if(deltaTotal<=0 && deltaBarefoot<=0 && deltaSocks<=0) return;
+  const todayRecord = history[todayKey] || {total:0,barefoot:0,socks:0};
+  todayRecord.total += Math.max(0, deltaTotal);
+  todayRecord.barefoot += Math.max(0, deltaBarefoot);
+  todayRecord.socks += Math.max(0, deltaSocks);
+  history[todayKey] = todayRecord;
+  localStorage.setItem("ankleHistory",JSON.stringify(history));
+  lastCommittedSession = {
+    total: sessionCount,
+    barefoot: sessionModeCounts.barefoot,
+    socks: sessionModeCounts.socks
+  };
+}
+
 /* ===== Camera ===== */
 async function startCamera(){
   stream = await navigator.mediaDevices.getUserMedia({
@@ -322,9 +384,10 @@ document.getElementById("startBtn").onclick = async()=>{
   if(!running){
     if(!model) model = await cocoSsd.load();
     await startCamera();
-    running=true;
-    sessionCount=0;
-    sessionModeCounts={barefoot:0,socks:0};
+running=true;
+sessionCount=0;
+sessionModeCounts={barefoot:0,socks:0};
+lastCommittedSession={total:0,barefoot:0,socks:0};
     starTimes=[];
     countNow.textContent="Now: 0 / 現在: 0";
     if(intro) intro.style.display="none";
@@ -339,16 +402,14 @@ document.getElementById("startBtn").onclick = async()=>{
   }else{
     running=false;
     stopCamera();
-    const todayRecord = history[todayKey] || {total:0,barefoot:0,socks:0};
-    todayRecord.total += sessionCount;
-    todayRecord.barefoot += sessionModeCounts.barefoot;
-    todayRecord.socks += sessionModeCounts.socks;
-    history[todayKey] = todayRecord;
-    localStorage.setItem("ankleHistory",JSON.stringify(history));
+    commitSessionCounts();
     logs.push("=== SESSION END ===");
     if(intro) intro.style.display="block";
     if(extraArea) extraArea.style.display="block";
     if(overlay && overlay.textContent) overlay.style.display="block";
+    sessionCount=0;
+    sessionModeCounts={barefoot:0,socks:0};
+    lastCommittedSession={total:0,barefoot:0,socks:0};
     document.getElementById("startBtn").textContent="📷 Start Camera / カメラ起動";
   }
 };
@@ -382,8 +443,25 @@ const graphMessage = document.getElementById("graphMessage");
 const distanceMessage = document.getElementById("distanceMessage");
 const startPointSelect = document.getElementById("startPointSelect");
 const overlay = document.getElementById("overlay");
+const historyEditor = document.getElementById("historyEditor");
+const historyEditorArea = document.getElementById("historyEditorArea");
+const historyEditorApply = document.getElementById("historyEditorApply");
 document.getElementById("plotBtn").onclick=renderHistoryChart;
 document.getElementById("distanceBtn").onclick=renderTokaidoSummary;
+if(historyEditor){
+  historyEditor.addEventListener("toggle",()=>{
+    if(historyEditor.open){
+      refreshHistoryEditor();
+    }
+  });
+}
+if(historyEditorApply){
+  historyEditorApply.addEventListener("click",(e)=>{
+    e.preventDefault();
+    applyHistoryEditor();
+  });
+}
+window.addEventListener("beforeunload",commitSessionCounts);
 
 /* ===== 平均テンポ計算（温存） ===== */
 function calculateAverageTempo(starTimes){
@@ -496,7 +574,7 @@ function renderTokaidoSummary(){
   }
 
   const totalCounts = days.reduce((sum,day)=>sum + combined[day].total,0);
-  const distanceMeters = totalCounts * 0.45;
+  const distanceMeters = totalCounts * 0.9;
   const distanceKm = distanceMeters / 1000;
   const startPoint = startPointSelect.value;
   const station = findStationForDistance(distanceKm, startPoint);
@@ -510,12 +588,47 @@ function renderTokaidoSummary(){
   }else{
     nextText = `次の宿場がありません。`;
   }
-  const summaryText=`累計 ${totalCounts} 回、記録日数 ${days.length} 日、1日平均 ${avgPerDay} 回。${totalCounts}✖︎45cm=${distanceMeters.toFixed(1)}m進みました。${startDistanceText}${nextText}`;
+  const summaryText=`累計 ${totalCounts} 回、記録日数 ${days.length} 日、1日平均 ${avgPerDay} 回。${totalCounts}✖︎90cm=${distanceMeters.toFixed(1)}m進みました。${startDistanceText}${nextText}`;
   distanceMessage.textContent=summaryText;
   if(overlay){
     overlay.textContent=`東海道53次換算：${summaryText}`;
     overlay.style.display= running ? "none" : "block";
   }
+}
+
+function refreshHistoryEditor(){
+  if(!historyEditorArea) return;
+  const combined = getCombinedHistory();
+  const rows = ["date,total,barefoot,socks"];
+  Object.keys(combined).sort().forEach(day=>{
+    const record = combined[day];
+    rows.push(`${day},${record.total},${record.barefoot},${record.socks}`);
+  });
+  historyEditorArea.value = rows.join("\n");
+}
+
+function applyHistoryEditor(){
+  if(!historyEditorArea) return;
+  const lines = historyEditorArea.value.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length);
+  if(lines.length<=1) return;
+  const newHistory = {};
+  for(const line of lines.slice(1)){
+    const [date,total,barefoot,socks] = line.split(",");
+    if(!date || isNaN(total) || isNaN(barefoot) || isNaN(socks)) continue;
+    newHistory[date] = {
+      total: Number(total),
+      barefoot: Number(barefoot),
+      socks: Number(socks)
+    };
+  }
+  if(Object.keys(newHistory).length===0) return;
+  for(const [date, record] of Object.entries(newHistory)){
+    history[date] = record;
+  }
+  localStorage.setItem("ankleHistory",JSON.stringify(history));
+  refreshHistoryEditor();
+  renderHistoryChart();
+  renderTokaidoSummary();
 }
 
 function findStationForDistance(distanceKm, startPoint){
@@ -573,7 +686,7 @@ function getNextStationAndGap(currentIndex, startPoint, distanceKm){
     gap
   };
 }
-
+refreshHistoryEditor();
 renderHistoryChart();
 renderTokaidoSummary();
   /* ===== detection loop（アルゴリズム温存） ===== */
@@ -618,6 +731,7 @@ async function detectLoop(){
             armed=false;
             mark=" ★";
             starTimes.push(now);
+            commitSessionCounts();
           }
 
           if(Math.abs(dY)<=T.THRESH_OFF){
