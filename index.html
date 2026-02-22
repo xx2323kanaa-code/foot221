@@ -496,7 +496,8 @@ function renderTokaidoSummary(){
   }
 
   const totalCounts = days.reduce((sum,day)=>sum + combined[day].total,0);
-  const distanceKm = totalCounts * 0.00045;
+  const distanceMeters = totalCounts * 0.45;
+  const distanceKm = distanceMeters / 1000;
   const startPoint = startPointSelect.value;
   const station = findStationForDistance(distanceKm, startPoint);
   const startLabel = startPoint==="nihonbashi" ? "日本橋" : "三条大橋";
@@ -504,13 +505,19 @@ function renderTokaidoSummary(){
   const stationIndex = station.index+1;
   const avgPerDay = days.length ? (totalCounts/days.length).toFixed(1) : "0.0";
   let directionText;
+  const nextInfo = getNextStationAndGap(station.index, startPoint, distanceKm);
   if(startPoint==="nihonbashi"){
-    directionText = `${startLabel}から約${distanceKm.toFixed(2)}km進むと東海道53次 ${stationIndex}番目の${stationLabel}（${station.distance.toFixed(1)}km地点）に到達します。`;
+    directionText = `${startLabel}から約${distanceKm.toFixed(2)}kmです。`;
   }else{
-    const remaining = Math.max(0, totalRouteKm - station.distance);
-    directionText = `${startLabel}から約${distanceKm.toFixed(2)}km進むと東海道53次 ${stationIndex}番目の${stationLabel}（残り ${remaining.toFixed(1)}km）に到達します。`;
+    directionText = `${startLabel}から約${distanceKm.toFixed(2)}kmです。`;
   }
-  const summaryText=`累計 ${totalCounts} 回、記録日数 ${days.length} 日、1日平均 ${avgPerDay} 回。${directionText}`;
+  let nextText = "";
+  if(nextInfo){
+    nextText = `さらに${nextInfo.gap.toFixed(2)}km進むと東海道53次 ${nextInfo.index}番目の${nextInfo.name}（${nextInfo.stationDistance.toFixed(1)}km地点）に到達します。`;
+  }else{
+    nextText = `次の宿場がありません。`;
+  }
+  const summaryText=`累計 ${totalCounts} 回、記録日数 ${days.length} 日、1日平均 ${avgPerDay} 回。${distanceMeters.toFixed(1)}m進みました。${directionText}${nextText}`;
   distanceMessage.textContent=summaryText;
   if(overlay){
     overlay.textContent=`東海道53次換算：${summaryText}`;
@@ -546,6 +553,32 @@ function findStationForDistance(distanceKm, startPoint){
     }
   }
   return selected;
+}
+
+function getNextStationAndGap(currentIndex, startPoint, distanceKm){
+  if(startPoint==="nihonbashi"){
+    if(currentIndex >= tokaidoStations.length - 1) return null;
+    const nextIndex = currentIndex + 1;
+    const nextStation = tokaidoStations[nextIndex];
+    const gap = Math.max(0, nextStation.distance - distanceKm);
+    return {
+      index: nextIndex + 1,
+      name: nextStation.name,
+      stationDistance: nextStation.distance,
+      gap
+    };
+  }
+  if(currentIndex <= 0) return null;
+  const prevIndex = currentIndex - 1;
+  const nextStation = tokaidoStations[prevIndex];
+  const nextDistanceFromStart = totalRouteKm - nextStation.distance;
+  const gap = Math.max(0, nextDistanceFromStart - distanceKm);
+  return {
+    index: prevIndex + 1,
+    name: nextStation.name,
+    stationDistance: nextStation.distance,
+    gap
+  };
 }
 
 renderHistoryChart();
