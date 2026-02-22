@@ -23,6 +23,26 @@ body{
   object-fit:cover;
   background:#000;
 }
+#videoWrapper{
+  position:relative;
+  width:100%;
+  height:60vh;
+  overflow:hidden;
+}
+#overlay{
+  position:absolute;
+  top:10px;
+  right:10px;
+  left:10px;
+  background:rgba(0,0,0,0.65);
+  color:#fff;
+  font-size:14px;
+  padding:6px 8px;
+  border-radius:8px;
+  min-height:36px;
+  display:none;
+  line-height:1.4;
+}
 #panel{
   position:fixed;
   bottom:0; left:0; right:0;
@@ -103,7 +123,10 @@ button, select{
   １セット２０回を目安に、最大１日８００回まで挑戦してください。
 </div>
 
-<video id="video" autoplay muted playsinline></video>
+<div id="videoWrapper">
+  <video id="video" autoplay muted playsinline></video>
+  <div id="overlay" aria-live="polite"></div>
+</div>
 
 <div id="panel">
   <button id="startBtn">📷 Start Camera / カメラ起動</button>
@@ -306,6 +329,7 @@ document.getElementById("startBtn").onclick = async()=>{
     countNow.textContent="Now: 0 / 現在: 0";
     if(intro) intro.style.display="none";
     if(extraArea) extraArea.style.display="none";
+    if(overlay) overlay.style.display="none";
     if(graphMessage) graphMessage.textContent="";
     if(distanceMessage) distanceMessage.textContent="";
     logs.push("=== SESSION START ===");
@@ -324,6 +348,7 @@ document.getElementById("startBtn").onclick = async()=>{
     logs.push("=== SESSION END ===");
     if(intro) intro.style.display="block";
     if(extraArea) extraArea.style.display="block";
+    if(overlay && overlay.textContent) overlay.style.display="block";
     document.getElementById("startBtn").textContent="📷 Start Camera / カメラ起動";
   }
 };
@@ -356,6 +381,7 @@ const chartCtx = chartCanvas.getContext("2d");
 const graphMessage = document.getElementById("graphMessage");
 const distanceMessage = document.getElementById("distanceMessage");
 const startPointSelect = document.getElementById("startPointSelect");
+const overlay = document.getElementById("overlay");
 document.getElementById("plotBtn").onclick=renderHistoryChart;
 document.getElementById("distanceBtn").onclick=renderTokaidoSummary;
 
@@ -484,7 +510,12 @@ function renderTokaidoSummary(){
     const remaining = Math.max(0, totalRouteKm - station.distance);
     directionText = `${startLabel}から約${distanceKm.toFixed(2)}km進むと東海道53次 ${stationIndex}番目の${stationLabel}（残り ${remaining.toFixed(1)}km）に到達します。`;
   }
-  distanceMessage.textContent=`累計 ${totalCounts} 回、記録日数 ${days.length} 日、1日平均 ${avgPerDay} 回。${directionText}`;
+  const summaryText=`累計 ${totalCounts} 回、記録日数 ${days.length} 日、1日平均 ${avgPerDay} 回。${directionText}`;
+  distanceMessage.textContent=summaryText;
+  if(overlay){
+    overlay.textContent=`東海道53次換算：${summaryText}`;
+    overlay.style.display= running ? "none" : "block";
+  }
 }
 
 function findStationForDistance(distanceKm, startPoint){
