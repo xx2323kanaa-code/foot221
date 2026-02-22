@@ -227,7 +227,6 @@ let sessionModeCounts={barefoot:0,socks:0};
 let starTimes=[];
 
 const MAX_LOGS=300;
-let lastCommittedSession = {total:0,barefoot:0,socks:0};
 
 /* ---- tuning（裸足基準・温存） ---- */
 const THRESH_ON=6;
@@ -348,23 +347,6 @@ function getCombinedHistory(){
   return combined;
 }
 
-function commitSessionCounts(){
-  const deltaTotal = sessionCount - lastCommittedSession.total;
-  const deltaBarefoot = sessionModeCounts.barefoot - lastCommittedSession.barefoot;
-  const deltaSocks = sessionModeCounts.socks - lastCommittedSession.socks;
-  if(deltaTotal<=0 && deltaBarefoot<=0 && deltaSocks<=0) return;
-  const todayRecord = history[todayKey] || {total:0,barefoot:0,socks:0};
-  todayRecord.total += Math.max(0, deltaTotal);
-  todayRecord.barefoot += Math.max(0, deltaBarefoot);
-  todayRecord.socks += Math.max(0, deltaSocks);
-  history[todayKey] = todayRecord;
-  localStorage.setItem("ankleHistory",JSON.stringify(history));
-  lastCommittedSession = {
-    total: sessionCount,
-    barefoot: sessionModeCounts.barefoot,
-    socks: sessionModeCounts.socks
-  };
-}
 
 /* ===== Camera ===== */
 async function startCamera(){
@@ -384,10 +366,9 @@ document.getElementById("startBtn").onclick = async()=>{
   if(!running){
     if(!model) model = await cocoSsd.load();
     await startCamera();
-running=true;
-sessionCount=0;
-sessionModeCounts={barefoot:0,socks:0};
-lastCommittedSession={total:0,barefoot:0,socks:0};
+    running=true;
+    sessionCount=0;
+    sessionModeCounts={barefoot:0,socks:0};
     starTimes=[];
     countNow.textContent="Now: 0 / 現在: 0";
     if(intro) intro.style.display="none";
@@ -402,14 +383,18 @@ lastCommittedSession={total:0,barefoot:0,socks:0};
   }else{
     running=false;
     stopCamera();
-    commitSessionCounts();
+    const todayRecord = history[todayKey] || {total:0,barefoot:0,socks:0};
+    todayRecord.total += sessionCount;
+    todayRecord.barefoot += sessionModeCounts.barefoot;
+    todayRecord.socks += sessionModeCounts.socks;
+    history[todayKey] = todayRecord;
+    localStorage.setItem("ankleHistory",JSON.stringify(history));
     logs.push("=== SESSION END ===");
     if(intro) intro.style.display="block";
     if(extraArea) extraArea.style.display="block";
     if(overlay && overlay.textContent) overlay.style.display="block";
     sessionCount=0;
     sessionModeCounts={barefoot:0,socks:0};
-    lastCommittedSession={total:0,barefoot:0,socks:0};
     document.getElementById("startBtn").textContent="📷 Start Camera / カメラ起動";
   }
 };
@@ -442,6 +427,8 @@ const chartCtx = chartCanvas.getContext("2d");
 const graphMessage = document.getElementById("graphMessage");
 const distanceMessage = document.getElementById("distanceMessage");
 const startPointSelect = document.getElementById("startPointSelect");
+document.getElementById("plotBtn").onclick=renderHistoryChart;
+document.getElementById("distanceBtn").onclick=renderTokaidoSummary;
 const overlay = document.getElementById("overlay");
 const historyEditor = document.getElementById("historyEditor");
 const historyEditorArea = document.getElementById("historyEditorArea");
@@ -461,7 +448,6 @@ if(historyEditorApply){
     applyHistoryEditor();
   });
 }
-window.addEventListener("beforeunload",commitSessionCounts);
 
 /* ===== 平均テンポ計算（温存） ===== */
 function calculateAverageTempo(starTimes){
@@ -731,7 +717,6 @@ async function detectLoop(){
             armed=false;
             mark=" ★";
             starTimes.push(now);
-            commitSessionCounts();
           }
 
           if(Math.abs(dY)<=T.THRESH_OFF){
