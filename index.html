@@ -188,7 +188,10 @@ button, select{
   <div id="distanceMessage"></div>
 </div>
 <details id="historyEditor">
-  <summary>CSV/履歴を手動で調整</summary>
+  <summary>
+    <span>CSV/履歴を手動で調整</span>
+    <button id="historyEditorApplyInline" type="button">反映</button>
+  </summary>
   <textarea id="historyEditorArea" aria-label="日別記録をカンマ区切りで編集"></textarea>
   <div class="editorActions">
     <button id="historyEditorApply">履歴に反映</button>
@@ -415,6 +418,7 @@ const overlay = document.getElementById("overlay");
 const historyEditor = document.getElementById("historyEditor");
 const historyEditorArea = document.getElementById("historyEditorArea");
 const historyEditorApply = document.getElementById("historyEditorApply");
+const historyEditorApplyInline = document.getElementById("historyEditorApplyInline");
 document.getElementById("plotBtn").onclick=renderHistoryChart;
 document.getElementById("distanceBtn").onclick=renderTokaidoSummary;
 if(historyEditor){
@@ -426,6 +430,12 @@ if(historyEditor){
 }
 if(historyEditorApply){
   historyEditorApply.addEventListener("click",(e)=>{
+    e.preventDefault();
+    applyHistoryEditor();
+  });
+}
+if(historyEditorApplyInline){
+  historyEditorApplyInline.addEventListener("click",(e)=>{
     e.preventDefault();
     applyHistoryEditor();
   });
