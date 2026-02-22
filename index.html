@@ -125,9 +125,6 @@ button, select{
   border:1px solid #999;
   background:#fff;
 }
-#details{
-
-}
 #historyChart{
   width:100%;
   max-width:100%;
@@ -164,13 +161,13 @@ button, select{
   <button id="startBtn">📷 Start Camera / カメラ起動</button>
 
   <select id="facing">
+    <option value="environment" selected>Back / 背面</option>
     <option value="user">Front / 前側</option>
-    <option value="environment">Back / 背面</option>
   </select>
 
   <button id="modeBtn">🦶 Barefoot / 裸足</button>
-  <button id="hudBtn">HUD / HUD表示</button>
-  <button id="copyHudBtn">📋 Copy HUD / HUDコピー</button>
+  <button id="hudBtn" title="HUD表示切替">H</button>
+  <button id="copyHudBtn" title="HUDログコピー">HP</button>
   <button id="csvBtn">CSV / CSV一括出力</button>
 
   <div id="hud"></div>
@@ -188,7 +185,7 @@ button, select{
   </div>
   <canvas id="historyChart" width="320" height="180" aria-label="過去7日間の実施回数"></canvas>
   <div id="graphMessage"></div>
-<div id="distanceMessage"></div>
+  <div id="distanceMessage"></div>
 </div>
 <details id="historyEditor">
   <summary>CSV/履歴を手動で調整</summary>
@@ -208,9 +205,6 @@ const hud = document.getElementById("hud");
 const status = document.getElementById("status");
 const intro = document.getElementById("intro");
 const extraArea = document.getElementById("extraArea");
-const historyEditor = document.getElementById("historyEditor");
-const historyEditorArea = document.getElementById("historyEditorArea");
-const historyEditorApply = document.getElementById("historyEditorApply");
 
 /* ===== モード管理 ===== */
 let socksMode = false;
@@ -337,16 +331,8 @@ function getCombinedHistory(){
       socks: record.socks
     };
   }
-  if(running && sessionCount>0){
-    const todayRecord = combined[todayKey] || {total:0,barefoot:0,socks:0};
-    todayRecord.total += sessionCount;
-    todayRecord.barefoot += sessionModeCounts.barefoot;
-    todayRecord.socks += sessionModeCounts.socks;
-    combined[todayKey] = todayRecord;
-  }
   return combined;
 }
-
 
 /* ===== Camera ===== */
 async function startCamera(){
@@ -393,8 +379,6 @@ document.getElementById("startBtn").onclick = async()=>{
     if(intro) intro.style.display="block";
     if(extraArea) extraArea.style.display="block";
     if(overlay && overlay.textContent) overlay.style.display="block";
-    sessionCount=0;
-    sessionModeCounts={barefoot:0,socks:0};
     document.getElementById("startBtn").textContent="📷 Start Camera / カメラ起動";
   }
 };
@@ -427,8 +411,6 @@ const chartCtx = chartCanvas.getContext("2d");
 const graphMessage = document.getElementById("graphMessage");
 const distanceMessage = document.getElementById("distanceMessage");
 const startPointSelect = document.getElementById("startPointSelect");
-document.getElementById("plotBtn").onclick=renderHistoryChart;
-document.getElementById("distanceBtn").onclick=renderTokaidoSummary;
 const overlay = document.getElementById("overlay");
 const historyEditor = document.getElementById("historyEditor");
 const historyEditorArea = document.getElementById("historyEditorArea");
@@ -672,6 +654,7 @@ function getNextStationAndGap(currentIndex, startPoint, distanceKm){
     gap
   };
 }
+
 refreshHistoryEditor();
 renderHistoryChart();
 renderTokaidoSummary();
